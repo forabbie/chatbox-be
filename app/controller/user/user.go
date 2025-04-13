@@ -2,11 +2,14 @@ package controller
 
 import (
 	"context"
+	"database/sql"
 	"log"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/utils"
 	"golang.org/x/crypto/bcrypt"
+
+	jwtv4 "github.com/golang-jwt/jwt/v4"
 
 	"chatbox/pkg/jwt"
 	"chatbox/pkg/settings"
@@ -192,4 +195,70 @@ func Login(c *fiber.Ctx) error {
 			"refresh_token": refreshToken,
 		},
 	})
+}
+
+func Refresh(c *fiber.Ctx) error {
+	ctx, cancel := context.WithTimeout(context.Background(), settings.Timeout)
+
+	defer cancel()
+
+	claims := c.Locals("claims").(jwtv4.MapClaims)
+
+	sub, _ := claims["sub"].(float64)
+
+	id := int(sub)
+
+	user, err := suser.Get(ctx, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			log.Print(err)
+
+			return c.SendStatus(fiber.StatusNotFound)
+		} else {
+			log.Print(err)
+
+			return err
+		}
+	}
+
+	if user.IsActive != nil && !*user.IsActive {
+		return c.SendStatus(fiber.StatusForbidden)
+	}
+
+	accessToken, err := jwt.NewToken(
+		user.Id,
+		settings.ShortExpiration,
+		nil,
+		jwt.AccessTokenKey,
+	)
+	if err != nil {
+		log.Print(err)
+
+		return err
+	}
+
+	refreshToken, err := jwt.NewToken(
+		user.Id,
+		settings.LongExpiration,
+		utils.UUID(),
+		jwt.RefreshTokenKey,
+	)
+	if err != nil {
+		log.Print(err)
+
+		return err
+	}
+
+	return c.JSON(fiber.Map{
+		"response": fiber.Map{
+			"access_token":  accessToken,
+			"token_type":    jwt.AuthScheme,
+			"expires_in":    settings.ShortExpiration.Seconds(),
+			"refresh_token": refreshToken,
+		},
+	})
+}
+
+func Logout(c *fiber.Ctx) error {
+	return c.SendStatus(fiber.StatusNoContent)
 }

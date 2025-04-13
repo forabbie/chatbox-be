@@ -36,6 +36,35 @@ func Insert(ctx context.Context, user *muser.User) (int64, error) {
 	return id, nil
 }
 
+func Get(ctx context.Context, id int) (*muser.User, error) {
+	query := "SELECT id, firstname, lastname, username, emailaddress, hashed_password, is_active "
+
+	query += "FROM users "
+
+	query += "WHERE id = $1"
+
+	row := database.PostgresMain.DB.QueryRowContext(ctx, query, id)
+	if err := row.Err(); err != nil {
+		return nil, err
+	}
+
+	user := new(muser.User)
+
+	if err := row.Scan(
+		&user.Id,
+		&user.Firstname,
+		&user.Lastname,
+		&user.Username,
+		&user.EmailAddress,
+		&user.Password,
+		&user.IsActive,
+	); err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
 func Count(ctx context.Context, filter map[string][]string, args []interface{}) (int64, error) {
 	query := `SELECT COUNT(*) FROM users`
 	conditions := []string{}
