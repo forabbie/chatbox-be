@@ -8,4 +8,6 @@ import (
 
 func Route(router fiber.Router) {
 	router.Post("/user", cuser.Register)
+
+	router.Post("/user/login", cuser.Login)
 }

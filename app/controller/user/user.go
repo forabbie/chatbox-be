@@ -101,3 +101,95 @@ func Register(c *fiber.Ctx) error {
 		},
 	})
 }
+
+func Login(c *fiber.Ctx) error {
+	// Create a context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), settings.Timeout)
+	defer cancel()
+
+	// Prevent caching
+	c.Set(fiber.HeaderCacheControl, settings.CacheControlNoStore)
+
+	// Extract form values
+	username := c.FormValue("username")
+	password := c.FormValue("password")
+
+	// Validate input
+	var validationErrors []validate.Map
+	if err := validate.One("username", username, "required"); len(err) > 0 {
+		validationErrors = append(validationErrors, err)
+	}
+	if err := validate.One("password", password, "required"); len(err) > 0 {
+		validationErrors = append(validationErrors, err)
+	}
+
+	if len(validationErrors) > 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"response": validationErrors})
+	}
+
+	// Build query filter
+	filter := map[string][]string{
+		"or": {
+			"emailaddress = ?",
+			"username = ?",
+		},
+	}
+	args := []interface{}{username, username}
+
+	// Fetch account
+	limit := 1
+	users, err := suser.Fetch(ctx, filter, args, limit)
+	if err != nil {
+		log.Printf("failed to fetch account: %v", err)
+		return fiber.ErrInternalServerError
+	}
+	if len(users) == 0 {
+		return c.SendStatus(fiber.StatusNotFound)
+	}
+
+	user := users[0]
+
+	// Validate password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+		return c.SendStatus(fiber.StatusBadRequest)
+	}
+
+	// Check user activation
+	if user.IsActive != nil && !*user.IsActive {
+		return c.SendStatus(fiber.StatusForbidden)
+	}
+
+	// Generate access token
+	accessToken, err := jwt.NewToken(
+		user.Id,
+		settings.ShortExpiration,
+		nil,
+		jwt.AccessTokenKey,
+	)
+	if err != nil {
+		log.Printf("failed to generate access token: %v", err)
+		return fiber.ErrInternalServerError
+	}
+
+	// Generate refresh token
+	refreshToken, err := jwt.NewToken(
+		user.Id,
+		settings.LongExpiration,
+		utils.UUID(),
+		jwt.RefreshTokenKey,
+	)
+	if err != nil {
+		log.Printf("failed to generate refresh token: %v", err)
+		return fiber.ErrInternalServerError
+	}
+
+	// Success response
+	return c.JSON(fiber.Map{
+		"response": fiber.Map{
+			"access_token":  accessToken,
+			"token_type":    jwt.AuthScheme,
+			"expires_in":    settings.ShortExpiration.Seconds(),
+			"refresh_token": refreshToken,
+		},
+	})
+}

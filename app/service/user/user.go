@@ -62,3 +62,69 @@ func Count(ctx context.Context, filter map[string][]string, args []interface{}) 
 
 	return count, nil
 }
+
+func Fetch(ctx context.Context, filter map[string][]string, args []interface{}, limit int) ([]muser.User, error) {
+	query := "SELECT id, firstname, lastname, username, emailaddress, hashed_password, is_active FROM users"
+
+	var conditions []string
+	placeholderIndex := 1
+	var finalArgs []interface{}
+
+	// OR conditions
+	if ors, ok := filter["or"]; ok && len(ors) > 0 {
+		var orConditions []string
+		for _, condition := range ors {
+			orConditions = append(orConditions, fmt.Sprintf("%s $%d", strings.Split(condition, " ?")[0], placeholderIndex))
+			placeholderIndex++
+		}
+		conditions = append(conditions, "("+strings.Join(orConditions, " OR ")+")")
+		finalArgs = append(finalArgs, args[:len(ors)]...)
+	}
+
+	// AND conditions
+	if ands, ok := filter["and"]; ok && len(ands) > 0 {
+		var andConditions []string
+		for _, condition := range ands {
+			andConditions = append(andConditions, fmt.Sprintf("%s $%d", strings.Split(condition, " ?")[0], placeholderIndex))
+			placeholderIndex++
+		}
+		conditions = append(conditions, "("+strings.Join(andConditions, " AND ")+")")
+		finalArgs = append(finalArgs, args[len(finalArgs):]...)
+	}
+
+	// WHERE clause
+	if len(conditions) > 0 {
+		query += " WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	// LIMIT placeholder
+	query += fmt.Sprintf(" LIMIT $%d", placeholderIndex)
+	finalArgs = append(finalArgs, limit)
+
+	rows, err := database.PostgresMain.DB.QueryContext(ctx, query, finalArgs...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []muser.User
+	for rows.Next() {
+		var user muser.User
+		if err := rows.Scan(
+			&user.Id,
+			&user.Firstname,
+			&user.Lastname,
+			&user.Username,
+			&user.EmailAddress,
+			&user.Password,
+			&user.IsActive,
+		); err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return users, nil
+}
