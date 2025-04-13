@@ -1,0 +1,7 @@
+{
+    "subject": "Verification",
+    "cc": [
+        "abbie.mercado@motivit.com"
+    ],
+    "body": "./assets/template/html/verification.html"
+}
