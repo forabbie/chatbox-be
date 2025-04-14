@@ -1,10 +1,11 @@
 package util
 
 import (
+	"fmt"
 	"math/rand"
 	"reflect"
-	"strings"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -53,4 +54,21 @@ func GenerateCode(length int) string {
 	}
 
 	return strings.Join(code, "")
+}
+
+func ReplacePlaceholders(query string, argCount int) (string, error) {
+	var sb strings.Builder
+	argIndex := 1
+	for i := 0; i < len(query); i++ {
+		if query[i] == '?' {
+			if argIndex > argCount {
+				return "", fmt.Errorf("more placeholders than arguments")
+			}
+			sb.WriteString(fmt.Sprintf("$%d", argIndex))
+			argIndex++
+		} else {
+			sb.WriteByte(query[i])
+		}
+	}
+	return sb.String(), nil
 }

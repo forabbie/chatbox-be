@@ -2,6 +2,7 @@ package handler
 
 import (
 	"log"
+	"os"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -10,15 +11,23 @@ import (
 )
 
 func ValidateAccessToken(c *fiber.Ctx) error {
-	auth := jwt.Auth(c.Get(fiber.HeaderAuthorization), jwt.AuthScheme)
+	accessToken := jwt.ParseAuth(c.Get(fiber.HeaderAuthorization), settings.BearerAuthScheme)
 
-	if _, err := jwt.ParseToken(auth, jwt.AccessTokenKey); err != nil {
+	accessToken = c.Query("token", accessToken)
+
+	claims, err := jwt.ParseToken(accessToken, os.Getenv("JWT_ACCESS_TOKEN_KEY"))
+	if err != nil {
 		log.Print(err)
 
-		c.Set(fiber.HeaderWWWAuthenticate, jwt.AuthScheme)
+		c.Set(fiber.HeaderWWWAuthenticate, settings.BearerAuthScheme)
 
 		return c.SendStatus(fiber.StatusUnauthorized)
 	}
+
+	c.Locals("access_token", accessToken)
+
+	// Set claims to locals
+	c.Locals("claims", claims)
 
 	return c.Next()
 }
@@ -26,16 +35,18 @@ func ValidateAccessToken(c *fiber.Ctx) error {
 func ValidateRefreshToken(c *fiber.Ctx) error {
 	c.Set(fiber.HeaderCacheControl, settings.CacheControlNoStore)
 
-	auth := jwt.Auth(c.Get(fiber.HeaderAuthorization), jwt.AuthScheme)
+	refreshToken := jwt.ParseAuth(c.Get(fiber.HeaderAuthorization), settings.BearerAuthScheme)
 
-	claims, err := jwt.ParseToken(auth, jwt.RefreshTokenKey)
+	claims, err := jwt.ParseToken(refreshToken, os.Getenv("JWT_REFRESH_TOKEN_KEY"))
 	if err != nil {
 		log.Print(err)
 
-		c.Set(fiber.HeaderWWWAuthenticate, jwt.AuthScheme)
+		c.Set(fiber.HeaderWWWAuthenticate, settings.BearerAuthScheme)
 
 		return c.SendStatus(fiber.StatusUnauthorized)
 	}
+
+	c.Locals("refresh_token", refreshToken)
 
 	// Set claims to locals
 	c.Locals("claims", claims)

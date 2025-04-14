@@ -3,8 +3,8 @@ package jwt
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"time"
 	"strings"
+	"time"
 
 	jwtv4 "github.com/golang-jwt/jwt/v4"
 )
@@ -66,4 +66,14 @@ func ParseToken(auth string, key string) (jwtv4.MapClaims, error) {
 	claims := token.Claims.(jwtv4.MapClaims)
 
 	return claims, nil
+}
+
+func ParseAuth(auth string, scheme string) string {
+	auths := strings.Split(auth, scheme)
+
+	if len(auths) == 2 {
+		return strings.TrimSpace(auths[1])
+	}
+
+	return auth
 }

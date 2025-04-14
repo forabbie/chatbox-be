@@ -34,6 +34,9 @@ const (
 	// Database timeout
 	Timeout time.Duration = 15 * time.Second
 
+	// JWT authentication scheme
+	BearerAuthScheme string = "Bearer"
+
 	// JWT expiration
 	LongExpiration time.Duration = 1 * time.Hour
 
