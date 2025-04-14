@@ -9,5 +9,6 @@ import (
 )
 
 func Route(router fiber.Router) {
+	router.Get("/message", hjwt.ValidateRefreshToken, cdmsg.GetMessages)
 	router.Post("/message", hjwt.ValidateRefreshToken, cdmsg.SendMessage)
 }
