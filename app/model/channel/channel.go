@@ -7,7 +7,6 @@ type Channel struct {
 }
 
 type CreatePayload struct {
-	CreatedBy int64   `json:"created_by,omitempty"`
-	Name      string  `json:"name" validate:"required"`
-	UserIDs   []int64 `json:"user_ids" validate:"required"`
+	Name    string  `json:"name" validate:"required"`
+	UserIDs []int64 `json:"user_ids" validate:"required"`
 }

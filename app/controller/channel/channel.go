@@ -11,6 +11,8 @@ import (
 
 	mchannel "chatbox/app/model/channel"
 	schannel "chatbox/app/service/channel"
+
+	jwtv4 "github.com/golang-jwt/jwt/v4"
 )
 
 func CreateChannel(c *fiber.Ctx) error {
@@ -20,14 +22,14 @@ func CreateChannel(c *fiber.Ctx) error {
 
 	c.Set(fiber.HeaderCacheControl, settings.CacheControlNoStore)
 
-	// userID := c.Locals("user_id")
-	// if userID == nil {
-	// 	return fiber.NewError(fiber.StatusUnauthorized, "Unauthorized")
-	// }
-	// createdBy, ok := userID.(int64)
-	// if !ok {
-	// 	return fiber.NewError(fiber.StatusInternalServerError, "Invalid user ID format")
-	// }
+	claims, _ := c.Locals("claims").(jwtv4.MapClaims)
+
+	sub, _ := claims["sub"].(float64)
+
+	userId := int(sub)
+
+	createdBy := int64(userId)
+
 	payload := new(mchannel.CreatePayload)
 
 	if err := c.BodyParser(payload); err != nil {
@@ -39,7 +41,7 @@ func CreateChannel(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"response": invalid})
 	}
 
-	channel, err := schannel.Insert(ctx, payload.Name, payload.CreatedBy, payload.UserIDs)
+	channel, err := schannel.Insert(ctx, payload.Name, createdBy, payload.UserIDs)
 	if err != nil {
 		log.Print(err)
 		return fiber.NewError(fiber.StatusInternalServerError, "Failed to create channel")
