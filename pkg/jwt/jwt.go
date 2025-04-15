@@ -1,33 +1,13 @@
 package jwt
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"strings"
 	"time"
 
 	jwtv4 "github.com/golang-jwt/jwt/v4"
 )
 
-const (
-	KeyLength int = 32
-
-	AuthScheme string = "Bearer"
-)
-
-var AccessTokenKey, RefreshTokenKey string
-
-func GenerateKey(length int) (string, error) {
-	b := make([]byte, length)
-
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-
-	return hex.EncodeToString(b), nil
-}
-
-func Auth(auth string, scheme string) string {
+func ParseAuth(auth string, scheme string) string {
 	auths := strings.Split(auth, scheme)
 
 	if len(auths) == 2 {
@@ -66,14 +46,4 @@ func ParseToken(auth string, key string) (jwtv4.MapClaims, error) {
 	claims := token.Claims.(jwtv4.MapClaims)
 
 	return claims, nil
-}
-
-func ParseAuth(auth string, scheme string) string {
-	auths := strings.Split(auth, scheme)
-
-	if len(auths) == 2 {
-		return strings.TrimSpace(auths[1])
-	}
-
-	return auth
 }

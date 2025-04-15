@@ -8,33 +8,42 @@ import (
 	_ "github.com/lib/pq"
 )
 
+type Config struct {
+	User, Pass, Host, Port, Name string
+	SSLMode, TimeZone            string
+}
+
 type PostgresDB struct {
 	DB   *sql.DB
 	Conn *sql.Conn
 }
 
-func Open(user, pass, host, port, name, sslmode string, ctx context.Context) (*PostgresDB, error) {
+func Open(ctx context.Context, config Config) (*PostgresDB, error) {
 	dsn := fmt.Sprintf(
-		"user=%s password=%s host=%s port=%s dbname=%s sslmode=%s",
-		user,
-		pass,
-		host,
-		port,
-		name,
-		sslmode,
+		"user=%s password=%s host=%s port=%s dbname=%s sslmode=%s TimeZone=%s",
+		config.User,
+		config.Pass,
+		config.Host,
+		config.Port,
+		config.Name,
+		config.SSLMode,
+		config.TimeZone,
 	)
 
-	db, _ := sql.Open("postgres", dsn)
+	db, err := sql.Open("postgres", dsn)
+	if err != nil {
+		return nil, err
+	}
 
 	conn, err := db.Conn(ctx)
+	if err != nil {
+		return nil, err
+	}
 
-	pg := new(PostgresDB)
-
-	pg.DB = db
-
-	pg.Conn = conn
-
-	return pg, err
+	return &PostgresDB{
+		DB:   db,
+		Conn: conn,
+	}, nil
 }
 
 func (p *PostgresDB) Close() error {

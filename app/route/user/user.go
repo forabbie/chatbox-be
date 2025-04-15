@@ -15,5 +15,5 @@ func Route(router fiber.Router) {
 
 	router.Post("/user/auth/refresh", hjwt.ValidateRefreshToken, cuser.Refresh)
 
-	router.Post("/user/logout", cuser.Logout)
+	router.Post("/user/logout", hjwt.ValidateAccessToken, cuser.Logout)
 }

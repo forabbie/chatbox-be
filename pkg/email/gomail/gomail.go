@@ -6,13 +6,12 @@ import (
 	gomailv2 "gopkg.in/gomail.v2"
 )
 
-var (
-	Dialer *gomailv2.Dialer
-	From, Name string
-)
+type Config struct {
+	Host, Port, User, Pass string
+}
 
-func NewDialer(host, port, user, pass string) *gomailv2.Dialer {
-	smtpPort, _ := strconv.Atoi(port)
+func NewDialer(config Config) *gomailv2.Dialer {
+	smtpPort, _ := strconv.Atoi(config.Port)
 
-	return gomailv2.NewDialer(host, smtpPort, user, pass)
+	return gomailv2.NewDialer(config.Host, smtpPort, config.User, config.Pass)
 }

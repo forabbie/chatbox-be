@@ -4,9 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"log"
+	"os"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/utils"
+	"github.com/gofiber/fiber/v2/utils"
 	"golang.org/x/crypto/bcrypt"
 
 	jwtv4 "github.com/golang-jwt/jwt/v4"
@@ -82,13 +83,13 @@ func Register(c *fiber.Ctx) error {
 	}
 
 	// Generate tokens
-	accessToken, err := jwt.NewToken(userID, settings.ShortExpiration, nil, jwt.AccessTokenKey)
+	accessToken, err := jwt.NewToken(userID, settings.ShortExpiration, nil, os.Getenv("JWT_ACCESS_TOKEN_KEY"))
 	if err != nil {
 		log.Print(err)
 		return err
 	}
 
-	refreshToken, err := jwt.NewToken(userID, settings.LongExpiration, utils.UUID(), jwt.RefreshTokenKey)
+	refreshToken, err := jwt.NewToken(userID, settings.LongExpiration, utils.UUIDv4(), os.Getenv("JWT_REFRESH_TOKEN_KEY"))
 	if err != nil {
 		log.Print(err)
 		return err
@@ -98,7 +99,7 @@ func Register(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"response": fiber.Map{
 			"access_token":  accessToken,
-			"token_type":    jwt.AuthScheme,
+			"token_type":    settings.BearerAuthScheme,
 			"expires_in":    settings.ShortExpiration.Seconds(),
 			"refresh_token": refreshToken,
 		},
@@ -167,30 +168,44 @@ func Login(c *fiber.Ctx) error {
 		user.Id,
 		settings.ShortExpiration,
 		nil,
-		jwt.AccessTokenKey,
+		os.Getenv("JWT_ACCESS_TOKEN_KEY"),
 	)
 	if err != nil {
 		log.Printf("failed to generate access token: %v", err)
 		return fiber.ErrInternalServerError
 	}
 
+	// // Generate refresh token
+	// refreshToken, err := jwt.NewToken(
+	// 	user.Id,
+	// 	settings.LongExpiration,
+	// 	utils.UUID(),
+	// 	jwt.RefreshTokenKey,
+	// )
+	// if err != nil {
+	// 	log.Printf("failed to generate refresh token: %v", err)
+	// 	return fiber.ErrInternalServerError
+	// }
+
+	refreshTokenExpiration := settings.LongExpiration
+
 	// Generate refresh token
 	refreshToken, err := jwt.NewToken(
 		user.Id,
-		settings.LongExpiration,
-		utils.UUID(),
-		jwt.RefreshTokenKey,
+		refreshTokenExpiration,
+		utils.UUIDv4(),
+		os.Getenv("JWT_REFRESH_TOKEN_KEY"),
 	)
 	if err != nil {
-		log.Printf("failed to generate refresh token: %v", err)
-		return fiber.ErrInternalServerError
+		log.Print(err)
+
+		return err
 	}
 
-	// Success response
 	return c.JSON(fiber.Map{
 		"response": fiber.Map{
 			"access_token":  accessToken,
-			"token_type":    jwt.AuthScheme,
+			"token_type":    settings.BearerAuthScheme,
 			"expires_in":    settings.ShortExpiration.Seconds(),
 			"refresh_token": refreshToken,
 		},
@@ -229,7 +244,7 @@ func Refresh(c *fiber.Ctx) error {
 		user.Id,
 		settings.ShortExpiration,
 		nil,
-		jwt.AccessTokenKey,
+		os.Getenv("JWT_ACCESS_TOKEN_KEY"),
 	)
 	if err != nil {
 		log.Print(err)
@@ -237,22 +252,14 @@ func Refresh(c *fiber.Ctx) error {
 		return err
 	}
 
-	refreshToken, err := jwt.NewToken(
-		user.Id,
-		settings.LongExpiration,
-		utils.UUID(),
-		jwt.RefreshTokenKey,
-	)
-	if err != nil {
-		log.Print(err)
+	auth := jwt.ParseAuth(c.Get(fiber.HeaderAuthorization), settings.BearerAuthScheme)
 
-		return err
-	}
+	refreshToken := auth
 
 	return c.JSON(fiber.Map{
 		"response": fiber.Map{
 			"access_token":  accessToken,
-			"token_type":    jwt.AuthScheme,
+			"token_type":    settings.BearerAuthScheme,
 			"expires_in":    settings.ShortExpiration.Seconds(),
 			"refresh_token": refreshToken,
 		},

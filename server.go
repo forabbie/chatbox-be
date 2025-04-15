@@ -10,8 +10,8 @@ import (
 
 	"chatbox/pkg/database"
 	"chatbox/pkg/database/postgres"
+	"chatbox/pkg/email"
 	"chatbox/pkg/email/gomail"
-	"chatbox/pkg/jwt"
 	"chatbox/pkg/settings"
 )
 
@@ -30,6 +30,7 @@ func main() {
 	defer file.Close()
 
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Llongfile | log.LUTC)
+
 	log.SetOutput(file)
 
 	file, err = os.OpenFile(settings.AccessLogFilename, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
@@ -41,20 +42,33 @@ func main() {
 
 	settings.LoggerConfig.Output = file
 
+	// scheme := os.Getenv("HTTP_SCHEME")
+
+	// host := os.Getenv("HTTP_HOST")
+
+	port := os.Getenv("HTTP_PORT")
+
+	if _, ok := os.LookupEnv("PORT"); ok {
+		port = os.Getenv("PORT")
+	}
+
+	// baseURL := fmt.Sprintf("%s://%s:%s/", scheme, host, port)
+
 	ctx, cancel := context.WithTimeout(context.Background(), settings.Timeout)
 
 	defer cancel()
 
-	pg, err := postgres.Open(
-		os.Getenv("PSQL_USER"),
-		os.Getenv("PSQL_PASS"),
-		os.Getenv("PSQL_HOST"),
-		os.Getenv("PSQL_PORT"),
-		os.Getenv("PSQL_NAME"),
-		os.Getenv("PSQL_SLLMODE"),
-		ctx,
-	)
+	pgConfig := postgres.Config{
+		User:     os.Getenv("PSQL_USER"),
+		Pass:     os.Getenv("PSQL_PASS"),
+		Host:     os.Getenv("PSQL_HOST"),
+		Port:     os.Getenv("PSQL_PORT"),
+		Name:     os.Getenv("PSQL_NAME"),
+		SSLMode:  os.Getenv("PSQL_SLLMODE"),
+		TimeZone: "+00:00",
+	}
 
+	pg, err := postgres.Open(ctx, pgConfig)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -75,34 +89,34 @@ func main() {
 
 	defer cancel()
 
-	gomail.Dialer = gomail.NewDialer(
-		os.Getenv("GOMAIL_HOST"),
-		os.Getenv("GOMAIL_PORT"),
-		os.Getenv("GOMAIL_USER"),
-		os.Getenv("GOMAIL_PASS"),
-	)
-
-	gomail.From, gomail.Name = os.Getenv("GOMAIL_FROM"), os.Getenv("GOMAIL_NAME")
-
-	jwt.AccessTokenKey, _ = jwt.GenerateKey(32)
-
-	if _, ok := os.LookupEnv("JWT_ACCESS_TOKEN_KEY"); ok {
-		jwt.AccessTokenKey = os.Getenv("JWT_ACCESS_TOKEN_KEY")
+	gomailConfig := gomail.Config{
+		Host: os.Getenv("GOMAIL_HOST"),
+		Port: os.Getenv("GOMAIL_PORT"),
+		User: os.Getenv("GOMAIL_USER"),
+		Pass: os.Getenv("GOMAIL_PASS"),
 	}
 
-	jwt.RefreshTokenKey, _ = jwt.GenerateKey(32)
+	dialer := gomail.NewDialer(gomailConfig)
 
-	if _, ok := os.LookupEnv("JWT_REFRESH_TOKEN_KEY"); ok {
-		jwt.RefreshTokenKey = os.Getenv("JWT_REFRESH_TOKEN_KEY")
-	}
+	email.GomailV2Dialer = dialer
+
+	email.GomailV2From, email.GomailV2Name = os.Getenv("GOMAIL_FROM"), os.Getenv("GOMAIL_NAME")
+
+	// gomail.From, gomail.Name = os.Getenv("GOMAIL_FROM"), os.Getenv("GOMAIL_NAME")
+
+	// jwt.AccessTokenKey, _ = jwt.GenerateKey(32)
+
+	// if _, ok := os.LookupEnv("JWT_ACCESS_TOKEN_KEY"); ok {
+	// 	jwt.AccessTokenKey = os.Getenv("JWT_ACCESS_TOKEN_KEY")
+	// }
+
+	// jwt.RefreshTokenKey, _ = jwt.GenerateKey(32)
+
+	// if _, ok := os.LookupEnv("JWT_REFRESH_TOKEN_KEY"); ok {
+	// 	jwt.RefreshTokenKey = os.Getenv("JWT_REFRESH_TOKEN_KEY")
+	// }
 
 	app := New()
-
-	port := os.Getenv("HTTP_PORT")
-
-	if _, ok := os.LookupEnv("PORT"); ok {
-		port = os.Getenv("PORT")
-	}
 
 	if err := app.Listen(fmt.Sprintf(":%s", port)); err != nil {
 		_ = app.Shutdown()
