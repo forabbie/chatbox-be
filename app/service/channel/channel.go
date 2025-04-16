@@ -5,6 +5,8 @@ import (
 	"context"
 
 	mchannel "chatbox/app/model/channel"
+
+	"github.com/lib/pq"
 )
 
 func Insert(ctx context.Context, name string, createdBy int64, userIDs []int64) (*mchannel.ChannelParam, error) {
@@ -69,43 +71,20 @@ func Insert(ctx context.Context, name string, createdBy int64, userIDs []int64) 
 	}, nil
 }
 
-// func GetByUserID(ctx context.Context, userID int64) ([]*mchannel.ChannelParam, error) {
-// 	query := ` SELECT c.id, c.name, c.created_by
-// 		FROM channels c
-// 		INNER JOIN channel_members cu ON cu.channel_id = c.id
-// 		WHERE cu.user_id = $1`
-
-// 	// row := database.PostgresMain.DB.QueryRowContext(ctx, query, userID)
-// 	// if err := row.Err(); err != nil {
-// 	// 	return nil, err
-// 	// }
-
-// 	// channels := new(mchannel.ChannelParam)
-
-// 	// if err := row.Scan(&channels.ID, &channels.Name, &channels.CreatedBy); err != nil {
-// 	// 	return nil, err
-// 	// }
-
-// 	// defer rows.Close()
-
-// 	// var channels []ChannelParam
-
-// 	// for rows.Next() {
-// 	// 	var ch ChannelParam
-// 	// 	if err := rows.Scan(&ch.ID, &ch.Name, &ch.CreatedBy); err != nil {
-// 	// 		return nil, err
-// 	// 	}
-// 	// 	channels = append(channels, ch)
-// 	// }
-
-// 	return []*mchannel.ChannelParam{channels}, nil
-// }
-
 func GetByUserID(ctx context.Context, userID int64) ([]*mchannel.ChannelParam, error) {
-	query := ` SELECT c.id, c.name, c.created_by
+	query := `
+		SELECT 
+			c.id,
+			c.name,
+			c.created_by,
+			ARRAY_AGG(cm_all.user_id) AS user_ids
 		FROM channels c
-		INNER JOIN channel_members cu ON cu.channel_id = c.id
-		WHERE cu.user_id = $1`
+		-- join only to filter channels where user is a member
+		JOIN channel_members cm_filter ON cm_filter.channel_id = c.id AND cm_filter.user_id = $1
+		-- join again to get all members
+		JOIN channel_members cm_all ON cm_all.channel_id = c.id
+		GROUP BY c.id, c.name, c.created_by
+	`
 
 	rows, err := database.PostgresMain.DB.QueryContext(ctx, query, userID)
 
@@ -117,7 +96,7 @@ func GetByUserID(ctx context.Context, userID int64) ([]*mchannel.ChannelParam, e
 	var channels []*mchannel.ChannelParam
 	for rows.Next() {
 		var ch mchannel.ChannelParam
-		if err := rows.Scan(&ch.ID, &ch.Name, &ch.CreatedBy); err != nil {
+		if err := rows.Scan(&ch.ID, &ch.Name, &ch.CreatedBy, pq.Array(&ch.UserIDs)); err != nil {
 			return nil, err
 		}
 		channels = append(channels, &ch)
