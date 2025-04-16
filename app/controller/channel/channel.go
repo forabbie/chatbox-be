@@ -142,3 +142,54 @@ func AddMemberToChannel(c *fiber.Ctx) error {
 		"message": "Member added successfully",
 	})
 }
+
+func LeaveChannel(c *fiber.Ctx) error {
+	ctx, cancel := context.WithTimeout(context.Background(), settings.Timeout)
+	defer cancel()
+
+	type Payload struct {
+		ID int64 `json:"id"` // channel ID
+	}
+
+	var payload Payload
+	if err := c.BodyParser(&payload); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid payload")
+	}
+
+	claims := c.Locals("claims").(jwtv4.MapClaims)
+	userID := int64(claims["sub"].(float64))
+
+	err := schannel.RemoveMember(ctx, payload.ID, userID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Failed to leave channel")
+	}
+
+	return c.JSON(fiber.Map{"message": "Left the channel successfully"})
+}
+
+func DeleteChannel(c *fiber.Ctx) error {
+	ctx, cancel := context.WithTimeout(context.Background(), settings.Timeout)
+	defer cancel()
+
+	claims := c.Locals("claims").(jwtv4.MapClaims)
+	userID := int64(claims["sub"].(float64))
+	channelID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid channel ID")
+	}
+
+	// Check if user is creator
+	isCreator, err := schannel.IsChannelCreator(ctx, channelID, userID)
+	if err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Failed to check channel owner")
+	}
+	if !isCreator {
+		return fiber.NewError(fiber.StatusForbidden, "Only the channel creator can delete the channel")
+	}
+
+	if err := schannel.Delete(ctx, channelID); err != nil {
+		return fiber.NewError(fiber.StatusInternalServerError, "Failed to delete channel")
+	}
+
+	return c.JSON(fiber.Map{"message": "Channel deleted successfully"})
+}

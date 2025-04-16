@@ -9,8 +9,10 @@ import (
 )
 
 func Route(router fiber.Router) {
-	router.Post("/channels", hjwt.ValidateAccessToken, cchannel.CreateChannel)
+	router.Post("/channel", hjwt.ValidateAccessToken, cchannel.CreateChannel)
 	router.Get("/channels", hjwt.ValidateAccessToken, cchannel.GetUserChannels)
-	router.Get("/channels/:id", hjwt.ValidateAccessToken, cchannel.GetChannelDetailsByID)
-	router.Post("/channels/add_member", hjwt.ValidateAccessToken, cchannel.AddMemberToChannel)
+	router.Get("/channel/:id", hjwt.ValidateAccessToken, cchannel.GetChannelDetailsByID)
+	router.Post("/channel/add_member", hjwt.ValidateAccessToken, cchannel.AddMemberToChannel)
+	router.Delete("/channel/:id", hjwt.ValidateAccessToken, cchannel.DeleteChannel)
+	router.Put("/channel/leave", hjwt.ValidateAccessToken, cchannel.LeaveChannel)
 }

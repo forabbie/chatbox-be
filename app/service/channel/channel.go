@@ -179,3 +179,29 @@ func IsMember(channelID int64, userID int64) (bool, error) {
 
 	return exists, err
 }
+
+func IsChannelCreator(ctx context.Context, channelID, userID int64) (bool, error) {
+	var createdBy int64
+	err := database.PostgresMain.DB.QueryRowContext(ctx, `
+		SELECT created_by FROM channels WHERE id = $1
+	`, channelID).Scan(&createdBy)
+
+	if err != nil {
+		return false, err
+	}
+	return createdBy == userID, nil
+}
+
+func RemoveMember(ctx context.Context, channelID, userID int64) error {
+	_, err := database.PostgresMain.DB.ExecContext(ctx, `
+		DELETE FROM channel_members WHERE channel_id = $1 AND user_id = $2
+	`, channelID, userID)
+	return err
+}
+
+func Delete(ctx context.Context, channelID int64) error {
+	_, err := database.PostgresMain.DB.ExecContext(ctx, `
+		DELETE FROM channels WHERE id = $1
+	`, channelID)
+	return err
+}
