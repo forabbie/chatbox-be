@@ -104,3 +104,58 @@ func GetByUserID(ctx context.Context, userID int64) ([]*mchannel.ChannelParam, e
 
 	return channels, nil
 }
+
+func GetDetailsByID(ctx context.Context, channelID int64) (*mchannel.GetChannelParam, error) {
+	// Step 1: Get channel details
+	query := `
+		SELECT c.id, c.name, c.created_by
+		FROM channels c
+		WHERE c.id = $1
+	`
+	row := database.PostgresMain.DB.QueryRowContext(ctx, query, channelID)
+
+	var ch mchannel.GetChannelParam
+	if err := row.Scan(&ch.ID, &ch.Name, &ch.CreatedBy); err != nil {
+		return nil, err
+	}
+
+	// Step 2: Get channel members
+	memberQuery := `
+		SELECT u.id, u.firstname, u.lastname, u.emailaddress
+		FROM users u
+		JOIN channel_members cm ON cm.user_id = u.id
+		WHERE cm.channel_id = $1
+	`
+
+	rows, err := database.PostgresMain.DB.QueryContext(ctx, memberQuery, channelID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var members []mchannel.UserSummary
+	for rows.Next() {
+		var u mchannel.UserSummary
+		if err := rows.Scan(&u.ID, &u.Firstname, &u.Lastname, &u.Emailaddress); err != nil {
+			return nil, err
+		}
+		members = append(members, u)
+	}
+	ch.Members = members
+
+	// Step 3: Get creator's user details
+	creatorQuery := `
+		SELECT id, firstname, lastname, emailaddress
+		FROM users
+		WHERE id = $1
+	`
+	var creator mchannel.UserSummary
+	if err := database.PostgresMain.DB.QueryRowContext(ctx, creatorQuery, ch.CreatedBy).Scan(
+		&creator.ID, &creator.Firstname, &creator.Lastname, &creator.Emailaddress,
+	); err != nil {
+		return nil, err
+	}
+	ch.CreatedByUser = creator
+
+	return &ch, nil
+}

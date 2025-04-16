@@ -9,6 +9,7 @@ import (
 )
 
 func Route(router fiber.Router) {
-	router.Post("/channel", hjwt.ValidateRefreshToken, cchannel.CreateChannel)
-	router.Get("/channel", hjwt.ValidateRefreshToken, cchannel.GetUserChannels)
+	router.Post("/channels", hjwt.ValidateRefreshToken, cchannel.CreateChannel)
+	router.Get("/channels", hjwt.ValidateRefreshToken, cchannel.GetUserChannels)
+	router.Get("/channels/:id", hjwt.ValidateRefreshToken, cchannel.GetChannelDetailsByID)
 }

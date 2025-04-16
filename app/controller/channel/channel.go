@@ -4,6 +4,7 @@ import (
 	"chatbox/pkg/settings"
 	"context"
 	"log"
+	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -83,5 +84,28 @@ func GetUserChannels(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"response": channels,
+	})
+}
+
+func GetChannelDetailsByID(c *fiber.Ctx) error {
+	ctx, cancel := context.WithTimeout(context.Background(), settings.Timeout)
+	defer cancel()
+
+	c.Set(fiber.HeaderCacheControl, settings.CacheControlNoStore)
+
+	channelIDParam := c.Params("id")
+	channelID, err := strconv.ParseInt(channelIDParam, 10, 64)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid channel ID")
+	}
+
+	channel, err := schannel.GetDetailsByID(ctx, channelID)
+	if err != nil {
+		log.Println("Failed to get channel:", err)
+		return fiber.NewError(fiber.StatusInternalServerError, "Failed to retrieve channel")
+	}
+
+	return c.JSON(fiber.Map{
+		"response": channel,
 	})
 }
