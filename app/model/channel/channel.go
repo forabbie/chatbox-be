@@ -32,3 +32,8 @@ type UserSummary struct {
 	Lastname     string `json:"lastname"`
 	Emailaddress string `json:"emailaddress"`
 }
+
+type AddMemberRequest struct {
+	ID       int64 `json:"id"`        // Channel ID
+	MemberID int64 `json:"member_id"` // User ID to add as member
+}

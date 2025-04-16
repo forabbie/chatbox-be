@@ -109,3 +109,36 @@ func GetChannelDetailsByID(c *fiber.Ctx) error {
 		"response": channel,
 	})
 }
+
+func AddMemberToChannel(c *fiber.Ctx) error {
+	var req mchannel.AddMemberRequest
+
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid request body")
+	}
+
+	if req.ID == 0 || req.MemberID == 0 {
+		return fiber.NewError(fiber.StatusBadRequest, "Missing id or member_id")
+	}
+
+	// Optional: check if the user is already a member
+	exists, err := schannel.IsMember(req.ID, req.MemberID)
+	if err != nil {
+		log.Println("Error checking membership:", err)
+		return fiber.NewError(fiber.StatusInternalServerError, "Failed to check membership")
+	}
+	if exists {
+		return fiber.NewError(fiber.StatusConflict, "User is already a member of the channel")
+	}
+
+	// Insert new member into channel
+	err = schannel.AddMember(req.ID, req.MemberID)
+	if err != nil {
+		log.Println("Failed to add member:", err)
+		return fiber.NewError(fiber.StatusInternalServerError, "Failed to add member to channel")
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "Member added successfully",
+	})
+}

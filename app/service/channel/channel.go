@@ -159,3 +159,23 @@ func GetDetailsByID(ctx context.Context, channelID int64) (*mchannel.GetChannelP
 
 	return &ch, nil
 }
+
+func AddMember(channelID int64, userID int64) error {
+	_, err := database.PostgresMain.DB.Exec(`
+		INSERT INTO channel_members (channel_id, user_id)
+		VALUES ($1, $2)
+	`, channelID, userID)
+
+	return err
+}
+
+func IsMember(channelID int64, userID int64) (bool, error) {
+	var exists bool
+	err := database.PostgresMain.DB.QueryRow(`
+		SELECT EXISTS (
+			SELECT 1 FROM channel_members WHERE channel_id = $1 AND user_id = $2
+		)
+	`, channelID, userID).Scan(&exists)
+
+	return exists, err
+}
