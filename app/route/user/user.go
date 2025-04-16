@@ -18,5 +18,5 @@ func Route(router fiber.Router) {
 
 	router.Post("/user/logout", hjwt.ValidateAccessToken, cuser.Logout)
 
-	router.Get("/users", hjwt.ValidateRefreshToken, cuser.GetUsers)
+	router.Get("/users", hjwt.ValidateAccessToken, cuser.GetUsers)
 }

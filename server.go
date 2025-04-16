@@ -102,20 +102,6 @@ func main() {
 
 	email.GomailV2From, email.GomailV2Name = os.Getenv("GOMAIL_FROM"), os.Getenv("GOMAIL_NAME")
 
-	// gomail.From, gomail.Name = os.Getenv("GOMAIL_FROM"), os.Getenv("GOMAIL_NAME")
-
-	// jwt.AccessTokenKey, _ = jwt.GenerateKey(32)
-
-	// if _, ok := os.LookupEnv("JWT_ACCESS_TOKEN_KEY"); ok {
-	// 	jwt.AccessTokenKey = os.Getenv("JWT_ACCESS_TOKEN_KEY")
-	// }
-
-	// jwt.RefreshTokenKey, _ = jwt.GenerateKey(32)
-
-	// if _, ok := os.LookupEnv("JWT_REFRESH_TOKEN_KEY"); ok {
-	// 	jwt.RefreshTokenKey = os.Getenv("JWT_REFRESH_TOKEN_KEY")
-	// }
-
 	app := New()
 
 	if err := app.Listen(fmt.Sprintf(":%s", port)); err != nil {
