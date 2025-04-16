@@ -42,7 +42,11 @@ const (
 
 	ShortExpiration time.Duration = 5 * time.Minute
 
+	// Cache
 	CacheControlNoStore string = "no-store"
+
+	// Prefer
+	PreferTotalOnly string = "total-only"
 
 	// Verification Code
 	VerificationCodeLength int = 6

@@ -269,3 +269,15 @@ func Refresh(c *fiber.Ctx) error {
 func Logout(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
+
+func GetUsers(c *fiber.Ctx) error {
+	users, err := suser.GetAll()
+	if err != nil {
+		log.Println("Failed to retrieve users:", err)
+		return fiber.NewError(fiber.StatusInternalServerError, "Failed to retrieve users")
+	}
+
+	return c.JSON(fiber.Map{
+		"response": users,
+	})
+}

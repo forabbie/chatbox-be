@@ -157,3 +157,25 @@ func Fetch(ctx context.Context, filter map[string][]string, args []interface{}, 
 	}
 	return users, nil
 }
+
+func GetAll() ([]*muser.User, error) {
+	rows, err := database.PostgresMain.DB.Query(`
+		SELECT id, firstname, lastname, emailaddress FROM users
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []*muser.User
+
+	for rows.Next() {
+		var user muser.User
+		if err := rows.Scan(&user.Id, &user.Firstname, &user.Lastname, &user.EmailAddress); err != nil {
+			return nil, err
+		}
+		users = append(users, &user)
+	}
+
+	return users, nil
+}
