@@ -158,10 +158,10 @@ func Fetch(ctx context.Context, filter map[string][]string, args []interface{}, 
 	return users, nil
 }
 
-func GetAll() ([]*muser.User, error) {
-	rows, err := database.PostgresMain.DB.Query(`
-		SELECT id, firstname, lastname, emailaddress FROM users
-	`)
+func GetAll(ctx context.Context) ([]*muser.User, error) {
+	query := `SELECT id, firstname, lastname, emailaddress FROM users`
+
+	rows, err := database.PostgresMain.DB.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}

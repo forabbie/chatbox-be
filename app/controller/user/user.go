@@ -144,7 +144,7 @@ func Login(c *fiber.Ctx) error {
 	limit := 1
 	users, err := suser.Fetch(ctx, filter, args, limit)
 	if err != nil {
-		log.Printf("failed to fetch account: %v", err)
+		log.Printf("failed to fetch user: %v", err)
 		return fiber.ErrInternalServerError
 	}
 	if len(users) == 0 {
@@ -174,18 +174,6 @@ func Login(c *fiber.Ctx) error {
 		log.Printf("failed to generate access token: %v", err)
 		return fiber.ErrInternalServerError
 	}
-
-	// // Generate refresh token
-	// refreshToken, err := jwt.NewToken(
-	// 	user.Id,
-	// 	settings.LongExpiration,
-	// 	utils.UUID(),
-	// 	jwt.RefreshTokenKey,
-	// )
-	// if err != nil {
-	// 	log.Printf("failed to generate refresh token: %v", err)
-	// 	return fiber.ErrInternalServerError
-	// }
 
 	refreshTokenExpiration := settings.LongExpiration
 
@@ -271,7 +259,13 @@ func Logout(c *fiber.Ctx) error {
 }
 
 func GetUsers(c *fiber.Ctx) error {
-	users, err := suser.GetAll()
+	ctx, cancel := context.WithTimeout(context.Background(), settings.Timeout)
+
+	defer cancel()
+
+	c.Set(fiber.HeaderCacheControl, settings.CacheControlNoStore)
+
+	users, err := suser.GetAll(ctx)
 	if err != nil {
 		log.Println("Failed to retrieve users:", err)
 		return fiber.NewError(fiber.StatusInternalServerError, "Failed to retrieve users")
