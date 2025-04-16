@@ -51,3 +51,37 @@ func CreateChannel(c *fiber.Ctx) error {
 		"response": channel,
 	})
 }
+
+func GetUserChannels(c *fiber.Ctx) error {
+	ctx, cancel := context.WithTimeout(context.Background(), settings.Timeout)
+
+	defer cancel()
+
+	c.Set(fiber.HeaderCacheControl, settings.CacheControlNoStore)
+
+	// Retrieve claims from context
+	claimsValue := c.Locals("claims")
+	claims, ok := claimsValue.(jwtv4.MapClaims)
+	if !ok {
+		return fiber.NewError(fiber.StatusUnauthorized, "Invalid token claims")
+	}
+
+	// Extract user ID (subject) from claims
+	sub, ok := claims["sub"].(float64)
+	if !ok {
+		return fiber.NewError(fiber.StatusUnauthorized, "Invalid subject in token")
+	}
+
+	userID := int64(sub)
+
+	// 🔍 Query channels where user is a member
+	channels, err := schannel.GetByUserID(ctx, userID)
+	if err != nil {
+		log.Println("Failed to get channels:", err)
+		return fiber.NewError(fiber.StatusInternalServerError, "Failed to retrieve channels")
+	}
+
+	return c.JSON(fiber.Map{
+		"response": channels,
+	})
+}
