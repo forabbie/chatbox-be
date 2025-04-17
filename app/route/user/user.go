@@ -10,13 +10,17 @@ import (
 
 func Route(router fiber.Router) {
 
-	router.Post("/user", cuser.Register)
+	router.Post("/auth/register", cuser.Register)
 
-	router.Post("/user/login", cuser.Login)
+	router.Post("/auth/login", cuser.Login)
 
-	router.Post("/user/auth/refresh", hjwt.ValidateRefreshToken, cuser.Refresh)
+	router.Post("/auth/refresh", hjwt.ValidateRefreshToken, cuser.Refresh)
 
-	router.Post("/user/logout", hjwt.ValidateAccessToken, cuser.Logout)
+	router.Post("/auth/logout", hjwt.ValidateAccessToken, cuser.Logout)
 
 	router.Get("/users", hjwt.ValidateAccessToken, cuser.GetUsers)
+
+	router.Get("/user/profile", hjwt.ValidateAccessToken, cuser.GetCurrentUser)
+
+	router.Get("/user/:id", hjwt.ValidateAccessToken, cuser.GetUserDetails)
 }

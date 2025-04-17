@@ -36,8 +36,8 @@ func Insert(ctx context.Context, user *muser.User) (int64, error) {
 	return id, nil
 }
 
-func Get(ctx context.Context, id int) (*muser.User, error) {
-	query := "SELECT id, firstname, lastname, username, emailaddress, hashed_password, is_active "
+func GetByID(ctx context.Context, id int64) (*muser.UserDetails, error) {
+	query := "SELECT id, firstname, lastname, username, emailaddress, is_active "
 
 	query += "FROM users "
 
@@ -48,7 +48,7 @@ func Get(ctx context.Context, id int) (*muser.User, error) {
 		return nil, err
 	}
 
-	user := new(muser.User)
+	user := new(muser.UserDetails)
 
 	if err := row.Scan(
 		&user.Id,
@@ -56,7 +56,6 @@ func Get(ctx context.Context, id int) (*muser.User, error) {
 		&user.Lastname,
 		&user.Username,
 		&user.EmailAddress,
-		&user.Password,
 		&user.IsActive,
 	); err != nil {
 		return nil, err

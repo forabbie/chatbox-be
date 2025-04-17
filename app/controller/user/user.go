@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/utils"
@@ -206,12 +207,9 @@ func Refresh(c *fiber.Ctx) error {
 	defer cancel()
 
 	claims := c.Locals("claims").(jwtv4.MapClaims)
+	userID := int64(claims["sub"].(float64))
 
-	sub, _ := claims["sub"].(float64)
-
-	id := int(sub)
-
-	user, err := suser.Get(ctx, id)
+	user, err := suser.GetByID(ctx, userID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			log.Print(err)
@@ -273,5 +271,63 @@ func GetUsers(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"response": users,
+	})
+}
+
+func GetUserDetails(c *fiber.Ctx) error {
+	ctx, cancel := context.WithTimeout(context.Background(), settings.Timeout)
+
+	defer cancel()
+
+	c.Set(fiber.HeaderCacheControl, settings.CacheControlNoStore)
+
+	userID, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid user ID")
+	}
+
+	user, err := suser.GetByID(ctx, userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fiber.NewError(fiber.StatusNotFound, "User not found")
+		}
+		return fiber.NewError(fiber.StatusInternalServerError, "Failed to retrieve user")
+	}
+
+	return c.JSON(fiber.Map{
+		"response": user,
+	})
+}
+
+func GetCurrentUser(c *fiber.Ctx) error {
+	ctx, cancel := context.WithTimeout(context.Background(), settings.Timeout)
+
+	defer cancel()
+
+	c.Set(fiber.HeaderCacheControl, settings.CacheControlNoStore)
+
+	claimsValue := c.Locals("claims")
+	claims, ok := claimsValue.(jwtv4.MapClaims)
+	if !ok {
+		return fiber.NewError(fiber.StatusUnauthorized, "Invalid token claims")
+	}
+
+	sub, ok := claims["sub"].(float64)
+	if !ok {
+		return fiber.NewError(fiber.StatusUnauthorized, "Invalid subject in token")
+	}
+
+	userID := int64(sub)
+
+	user, err := suser.GetByID(ctx, userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fiber.NewError(fiber.StatusNotFound, "User not found")
+		}
+		return fiber.NewError(fiber.StatusInternalServerError, "Failed to retrieve user")
+	}
+
+	return c.JSON(fiber.Map{
+		"response": user,
 	})
 }

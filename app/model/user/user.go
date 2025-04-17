@@ -14,6 +14,7 @@ type User struct {
 }
 
 type Query struct {
+	Id           int     `json:"id,omitempty"`
 	Firstname    *string `json:"firstname,omitempty" query:"firstname"`
 	Lastname     *string `json:"lastname,omitempty" query:"lastname"`
 	EmailAddress *string `json:"emailaddress,omitempty" query:"emailaddress"`
@@ -23,4 +24,14 @@ type Query struct {
 		Gte *time.Time `json:"gte,omitempty" query:"gte"`
 		Lte *time.Time `json:"lte,omitempty" query:"lte"`
 	} `json:"created,omitempty" query:"created"`
+}
+
+type UserDetails struct {
+	Id           int        `json:"id,omitempty"`
+	Firstname    string     `json:"firstname,omitempty" validate:"required"`
+	Lastname     string     `json:"lastname,omitempty" validate:"required"`
+	EmailAddress string     `json:"emailaddress,omitempty" validate:"required,emailaddress"`
+	Username     string     `json:"username,omitempty"`
+	IsActive     *bool      `json:"is_active,omitempty"`
+	CreatedAt    *time.Time `json:"created_at,omitempty"`
 }
