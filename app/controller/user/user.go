@@ -15,6 +15,7 @@ import (
 
 	"chatbox/pkg/jwt"
 	"chatbox/pkg/settings"
+	"chatbox/pkg/util"
 	"chatbox/pkg/util/validate"
 
 	muser "chatbox/app/model/user"
@@ -28,20 +29,28 @@ func Register(c *fiber.Ctx) error {
 	c.Set(fiber.HeaderCacheControl, settings.CacheControlNoStore)
 
 	emailaddress := c.FormValue("emailaddress")
-	password := c.FormValue("password")
+
+	decryptedPassword, err := util.Decrypt(c.FormValue("password"), os.Getenv("ENCRYPTION_KEY"))
+	if err != nil {
+		log.Print(err)
+		return c.SendStatus(fiber.StatusBadRequest)
+	}
+
+	password := decryptedPassword
 
 	// Validate input
-	var validationErrors []validate.Map
-	if v := validate.One("emailaddress", emailaddress, "required,emailaddress"); len(v) > 0 {
-		validationErrors = append(validationErrors, v)
+	invalids := []validate.Map{}
+
+	if invalid := validate.One("emailaddress", emailaddress, "required,emailaddress"); len(invalid) > 0 {
+		invalids = append(invalids, invalid)
 	}
-	if v := validate.One("password", password, "required"); len(v) > 0 {
-		validationErrors = append(validationErrors, v)
+
+	if invalid := validate.One("password", password, "required"); len(invalid) > 0 {
+		invalids = append(invalids, invalid)
 	}
-	if len(validationErrors) > 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"response": validationErrors,
-		})
+
+	if len(invalids) > 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"response": invalids})
 	}
 
 	// Check for existing user
@@ -116,12 +125,20 @@ func Login(c *fiber.Ctx) error {
 	c.Set(fiber.HeaderCacheControl, settings.CacheControlNoStore)
 
 	// Extract form values
-	username := c.FormValue("username")
-	password := c.FormValue("password")
+	emailaddress := c.FormValue("emailaddress")
+
+	decryptedPassword, err := util.Decrypt(c.FormValue("password"), os.Getenv("ENCRYPTION_KEY"))
+	if err != nil {
+		log.Print(err)
+
+		return c.SendStatus(fiber.StatusBadRequest)
+	}
+
+	password := decryptedPassword
 
 	// Validate input
 	var validationErrors []validate.Map
-	if err := validate.One("username", username, "required"); len(err) > 0 {
+	if err := validate.One("emailaddress", emailaddress, "required"); len(err) > 0 {
 		validationErrors = append(validationErrors, err)
 	}
 	if err := validate.One("password", password, "required"); len(err) > 0 {
@@ -139,7 +156,7 @@ func Login(c *fiber.Ctx) error {
 			"username = ?",
 		},
 	}
-	args := []interface{}{username, username}
+	args := []interface{}{emailaddress, emailaddress}
 
 	// Fetch account
 	limit := 1
