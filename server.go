@@ -67,8 +67,8 @@ func main() {
 
 	// Configure port
 	port := os.Getenv("HTTP_PORT")
-	if _, ok := os.LookupEnv("PORT"); ok {
-		port = os.Getenv("PORT")
+	if _, ok := os.LookupEnv("HTTP_PORT"); ok {
+		port = os.Getenv("HTTP_PORT")
 	}
 
 	// Set up PostgreSQL connection
