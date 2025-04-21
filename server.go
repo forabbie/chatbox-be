@@ -23,41 +23,54 @@ func init() {
 	}
 }
 
-func main() {
-	file, err := os.OpenFile(settings.ErrorLogFilename, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+func setupLogFile(filename string) (*os.File, error) {
+	// Create the directory if it doesn't exist
+	err := os.MkdirAll(filename, os.ModePerm)
 	if err != nil {
-		log.Panic(err)
+		return nil, err
 	}
 
-	defer file.Close()
+	// Open the log file
+	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		return nil, err
+	}
 
+	return file, nil
+}
+
+func main() {
+	// Set up error log file
+	errorLogFile, err := setupLogFile(settings.ErrorLogFilename)
+	if err != nil {
+		log.Fatal("failed to create or open error log file:", err)
+	}
+	defer errorLogFile.Close()
+
+	// Set up access log file
+	accessLogFile, err := setupLogFile(settings.AccessLogFilename)
+	if err != nil {
+		log.Fatal("failed to create or open access log file:", err)
+	}
+	defer accessLogFile.Close()
+
+	// Set logging flags
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Llongfile | log.LUTC)
 
-	log.SetOutput(file)
+	// Set output to error log file
+	log.SetOutput(errorLogFile)
 
-	file, err = os.OpenFile(settings.AccessLogFilename, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	if err != nil {
-		log.Panic(err)
-	}
+	// Optional: You could also set up logging to access log file if needed
+	// log.SetOutput(io.MultiWriter(errorLogFile, accessLogFile))
 
-	defer file.Close()
-
-	settings.LoggerConfig.Output = file
-
-	// scheme := os.Getenv("HTTP_SCHEME")
-
-	// host := os.Getenv("HTTP_HOST")
-
+	// Configure port
 	port := os.Getenv("HTTP_PORT")
-
 	if _, ok := os.LookupEnv("PORT"); ok {
 		port = os.Getenv("PORT")
 	}
 
-	// baseURL := fmt.Sprintf("%s://%s:%s/", scheme, host, port)
-
+	// Set up PostgreSQL connection
 	ctx, cancel := context.WithTimeout(context.Background(), settings.Timeout)
-
 	defer cancel()
 
 	pgConfig := postgres.Config{
@@ -87,10 +100,7 @@ func main() {
 
 	database.PostgresMain = pg
 
-	ctx, cancel = context.WithTimeout(context.Background(), settings.Timeout)
-
-	defer cancel()
-
+	// Set up gomail configuration
 	gomailConfig := gomail.Config{
 		Host: os.Getenv("GOMAIL_HOST"),
 		Port: os.Getenv("GOMAIL_PORT"),
@@ -99,16 +109,14 @@ func main() {
 	}
 
 	dialer := gomail.NewDialer(gomailConfig)
-
 	email.GomailV2Dialer = dialer
-
 	email.GomailV2From, email.GomailV2Name = os.Getenv("GOMAIL_FROM"), os.Getenv("GOMAIL_NAME")
 
+	// Initialize and run the app
 	app := New()
 
 	if err := app.Listen(fmt.Sprintf(":%s", port)); err != nil {
 		_ = app.Shutdown()
-
 		log.Fatal(err)
 	}
 }
