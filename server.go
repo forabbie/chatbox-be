@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/joho/godotenv"
 
@@ -24,16 +25,17 @@ func init() {
 }
 
 func setupLogFile(filename string) (*os.File, error) {
-	// Create the directory if it doesn't exist
-	err := os.MkdirAll(filename, os.ModePerm)
+	// Ensure the directory is created first
+	dir := filepath.Dir(filename)
+	err := os.MkdirAll(dir, os.ModePerm)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create log directory: %w", err)
 	}
 
-	// Open the log file
+	// Now, create or open the log file
 	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open log file: %w", err)
 	}
 
 	return file, nil
