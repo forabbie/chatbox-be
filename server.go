@@ -117,7 +117,7 @@ func main() {
 	// Initialize and run the app
 	app := New()
 
-	if err := app.Listen(fmt.Sprintf(":%s", port)); err != nil {
+	if err := app.Listen(fmt.Sprintf("0.0.0.0:%s", port)); err != nil {
 		_ = app.Shutdown()
 		log.Fatal(err)
 	}
