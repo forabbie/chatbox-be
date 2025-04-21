@@ -166,9 +166,10 @@ func Login(c *fiber.Ctx) error {
 		return fiber.ErrInternalServerError
 	}
 	if len(users) == 0 {
-		return c.SendStatus(fiber.StatusNotFound)
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"response": "invalid email or password",
+		})
 	}
-
 	user := users[0]
 
 	// Validate password
