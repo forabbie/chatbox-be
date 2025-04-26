@@ -10,23 +10,17 @@ type User struct {
 	Lastname     string `json:"lastname"`
 }
 
-type DirectMessage struct {
-	ID        int64      `json:"id"`
-	Message   string     `json:"message"`
-	SentAt    time.Time  `json:"sent_at"`
-	IsEdited  bool       `json:"is_edited"`
-	EditedAt  *time.Time `json:"edited_at,omitempty"`
-	DeletedAt *time.Time `json:"deleted_at,omitempty"`
-	Sender    User       `json:"sender"`
-	Receiver  User       `json:"receiver"`
-}
 type Message struct {
-	ID            int64     `json:"id,omitempty"`
-	Sender        User      `json:"sender"`
-	ReceiverID    *int64    `json:"receiver_id"`
-	ReceiverClass string    `json:"receiver_class"`
-	Message       string    `json:"message"`
-	SentAt        time.Time `json:"sent_at,omitempty"`
+	ID            int64      `json:"id,omitempty"`
+	Message       string     `json:"message"`
+	SentAt        time.Time  `json:"sent_at"`
+	IsEdited      bool       `json:"is_edited"`
+	EditedAt      *time.Time `json:"edited_at,omitempty"`
+	DeletedAt     *time.Time `json:"deleted_at,omitempty"`
+	Sender        User       `json:"sender"`
+	Receiver      *User      `json:"receiver,omitempty"`
+	ReceiverID    *int64     `json:"receiver_id"`
+	ReceiverClass string     `json:"receiver_class"`
 }
 
 type Query struct {
@@ -36,7 +30,7 @@ type Query struct {
 	// Username  *string `json:"username,omitempty" query:"username"`
 
 	// SenderID   *string `json:"sender_id,omitempty" query:"sender_id"`
-	ReceiverID    *string `json:"receiver_id,omitempty" query:"receiver_id"`
+	ReceiverID    *int64  `json:"receiver_id,omitempty" query:"receiver_id"`
 	ReceiverClass *string `query:"receiver_class"`
 	Created       struct {
 		Gte *time.Time `json:"gte,omitempty" query:"gte"`

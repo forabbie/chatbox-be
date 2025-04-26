@@ -94,28 +94,35 @@ func GetMessages(c *fiber.Ctx) error {
 		}
 	}
 
-	// Validate receiver_class only if present
-	if query.ReceiverClass != nil && *query.ReceiverClass != "user" && *query.ReceiverClass != "channel" {
+	// Validate receiver_class
+	if query.ReceiverClass == nil || *query.ReceiverClass != "user" && *query.ReceiverClass != "channel" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid receiver_class. Must be 'user' or 'channel'.",
+			"error": "Invalid or missing receiver_class. Must be 'user' or 'channel'.",
 		})
 	}
 
-	// Match conversation: user ↔ receiver
-	if query.ReceiverID != nil && query.ReceiverClass != nil {
-		filter["or"] = append(filter["or"],
-			"((dm.sender_id = ? AND dm.receiver_id = ?) OR (dm.sender_id = ? AND dm.receiver_id = ?))",
-		)
-		args = append(args, requestBy, *query.ReceiverID, *query.ReceiverID, requestBy)
+	// Build filters based on receiver type
+	if query.ReceiverID != nil {
+		switch *query.ReceiverClass {
+		case "user":
+			filter["or"] = append(filter["or"],
+				"((dm.sender_id = ? AND dm.receiver_id = ?) OR (dm.sender_id = ? AND dm.receiver_id = ?))",
+			)
+			args = append(args, requestBy, *query.ReceiverID, *query.ReceiverID, requestBy)
+
+		case "channel":
+			filter["and"] = append(filter["and"], "chm.channel_id = ?")
+			args = append(args, *query.ReceiverID)
+		}
 	}
 
 	// Date filters
 	if query.Created.Gte != nil {
-		filter["and"] = append(filter["and"], "dm.sent_at >= ?")
+		filter["and"] = append(filter["and"], "sent_at >= ?")
 		args = append(args, *query.Created.Gte)
 	}
 	if query.Created.Lte != nil {
-		filter["and"] = append(filter["and"], "dm.sent_at <= ?")
+		filter["and"] = append(filter["and"], "sent_at <= ?")
 		args = append(args, *query.Created.Lte)
 	}
 
@@ -139,19 +146,31 @@ func GetMessages(c *fiber.Ctx) error {
 	offset := (page - 1) * limit
 
 	sorts := strings.Split(c.Query("sort"), ",")
-	order, sort := "dm.sent_at", "ASC"
+	order, sort := "sent_at", "ASC"
 	if len(sorts) >= 1 && strings.TrimSpace(sorts[0]) != "" {
 		switch sorts[0] {
 		case "sent_at", "firstname", "lastname":
-			order = "dm." + sorts[0]
+			order = sorts[0]
 		}
 	}
 	if len(sorts) == 2 && strings.ToLower(sorts[1]) == "desc" {
 		sort = "DESC"
 	}
 
-	// Fetch results
-	messages, err := smsg.Fetch(ctx, filter, args, order, sort, limit, offset)
+	// Fetch messages
+	var (
+		messages []mmsg.Message
+		err      error
+	)
+
+	switch *query.ReceiverClass {
+	case "user":
+		messages, err = smsg.FetchDirectMessages(ctx, requestBy, *query.ReceiverID, filter, args, order, sort, limit, offset)
+
+	case "channel":
+		messages, err = smsg.FetchChannelMessages(ctx, *query.ReceiverID, filter, args, order, sort, limit, offset)
+	}
+
 	if err != nil {
 		log.Print(err)
 		return fiber.NewError(fiber.StatusInternalServerError, "Failed to fetch messages")
