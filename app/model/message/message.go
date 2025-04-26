@@ -27,10 +27,10 @@ type Query struct {
 	// Lastname  *string `json:"lastname,omitempty" query:"lastname"`
 	// Username  *string `json:"username,omitempty" query:"username"`
 
-	SenderID   *string `json:"sender_id,omitempty" query:"sender_id"`
-	ReceiverID *string `json:"receiver_id,omitempty" query:"receiver_id"`
-
-	Created struct {
+	// SenderID   *string `json:"sender_id,omitempty" query:"sender_id"`
+	ReceiverID    *string `json:"receiver_id,omitempty" query:"receiver_id"`
+	ReceiverClass *string `query:"receiver_class"`
+	Created       struct {
 		Gte *time.Time `json:"gte,omitempty" query:"gte"`
 		Lte *time.Time `json:"lte,omitempty" query:"lte"`
 	} `json:"created,omitempty" query:"created"`

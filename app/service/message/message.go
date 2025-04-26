@@ -26,17 +26,15 @@ func Insert(ctx context.Context, dmsg *mdmsg.DirectMessage) (*mdmsg.DirectMessag
 }
 
 func Fetch(ctx context.Context, filter map[string][]string, args []interface{}, order, sort string, limit, offset int) ([]mdmsg.DirectMessage, error) {
-	// Define allowed order fields to avoid SQL injection
 	allowedOrderFields := map[string]bool{
 		"dm.sent_at":    true,
 		"dm.edited_at":  true,
 		"dm.deleted_at": true,
 	}
-
-	// Fallback/defaults
 	if !allowedOrderFields[order] {
 		order = "dm.sent_at"
 	}
+
 	sort = strings.ToUpper(sort)
 	if sort != "DESC" {
 		sort = "ASC"
@@ -62,13 +60,11 @@ func Fetch(ctx context.Context, filter map[string][]string, args []interface{}, 
 	var conditions []string
 
 	if ors, ok := filter["or"]; ok && len(ors) > 0 {
-		orClause := "(" + strings.Join(ors, " OR ") + ")"
-		conditions = append(conditions, orClause)
+		conditions = append(conditions, "("+strings.Join(ors, " OR ")+")")
 	}
 
 	if ands, ok := filter["and"]; ok && len(ands) > 0 {
-		andClause := "(" + strings.Join(ands, " AND ") + ")"
-		conditions = append(conditions, andClause)
+		conditions = append(conditions, "("+strings.Join(ands, " AND ")+")")
 	}
 
 	if len(conditions) > 0 {
@@ -79,7 +75,6 @@ func Fetch(ctx context.Context, filter map[string][]string, args []interface{}, 
 	query += " LIMIT ? OFFSET ?"
 	args = append(args, limit, offset)
 
-	// 🔁 Replace '?' with PostgreSQL placeholders ($1, $2, ...)
 	query, err := util.ReplacePlaceholders(query, len(args))
 	if err != nil {
 		return nil, err
@@ -115,9 +110,5 @@ func Fetch(ctx context.Context, filter map[string][]string, args []interface{}, 
 		messages = append(messages, msg)
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return messages, nil
+	return messages, rows.Err()
 }
