@@ -20,6 +20,14 @@ type DirectMessage struct {
 	Sender    User       `json:"sender"`
 	Receiver  User       `json:"receiver"`
 }
+type Message struct {
+	ID            int64     `json:"id,omitempty"`
+	Sender        User      `json:"sender"`
+	ReceiverID    *int64    `json:"receiver_id"`
+	ReceiverClass string    `json:"receiver_class"`
+	Message       string    `json:"message"`
+	SentAt        time.Time `json:"sent_at,omitempty"`
+}
 
 type Query struct {
 	// Message   *string `json:"message,omitempty" query:"message"`

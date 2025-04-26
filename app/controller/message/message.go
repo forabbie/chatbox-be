@@ -11,38 +11,58 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	mdmsg "chatbox/app/model/message"
-	sdmsg "chatbox/app/service/message"
+	mmsg "chatbox/app/model/message"
+	smsg "chatbox/app/service/message"
 
 	jwtv4 "github.com/golang-jwt/jwt/v4"
 )
 
 func SendMessage(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(context.Background(), settings.Timeout)
-
 	defer cancel()
 	c.Set(fiber.HeaderCacheControl, settings.CacheControlNoStore)
 
-	dmsg := new(mdmsg.DirectMessage)
+	// Get sender from JWT
+	claims, _ := c.Locals("claims").(jwtv4.MapClaims)
+	sub, _ := claims["sub"].(float64)
+	senderID := int64(sub)
 
-	if err := c.BodyParser(dmsg); err != nil {
+	// Parse the request body
+	msg := new(mmsg.Message)
+	if err := c.BodyParser(msg); err != nil {
 		log.Print(err)
-
 		return c.SendStatus(fiber.StatusUnprocessableEntity)
 	}
 
-	if invalid := validate.All(dmsg); len(invalid) > 0 {
+	// Set the authenticated sender ID
+	msg.Sender.ID = senderID
+
+	// Validate required fields (receiver_id, receiver_class, message)
+	if invalid := validate.All(msg); len(invalid) > 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"response": invalid})
 	}
 
-	lastInsertId, err := sdmsg.Insert(ctx, dmsg)
-	if err != nil {
-		log.Print(err)
-
-		return err
+	// Ensure receiver_class is either "user" or "channel"
+	msg.ReceiverClass = strings.ToLower(msg.ReceiverClass)
+	if msg.ReceiverClass != "user" && msg.ReceiverClass != "channel" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid receiver_class. Must be 'user' or 'channel'.",
+		})
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"response": fiber.Map{"lastInsertId": lastInsertId}})
+	// Insert the message
+	result, err := smsg.Insert(ctx, msg)
+	if err != nil {
+		log.Print(err)
+		return fiber.NewError(fiber.StatusInternalServerError, "Failed to send message")
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"response": fiber.Map{
+			"id":      result.ID,
+			"sent_at": result.SentAt,
+		},
+	})
 }
 
 func GetMessages(c *fiber.Ctx) error {
@@ -54,7 +74,7 @@ func GetMessages(c *fiber.Ctx) error {
 	userId := int(sub)
 	requestBy := int64(userId)
 
-	query := new(mdmsg.Query)
+	query := new(mmsg.Query)
 	if err := c.QueryParser(query); err != nil {
 		log.Print(err)
 		return fiber.NewError(fiber.StatusBadRequest, "Invalid query parameters")
@@ -75,24 +95,18 @@ func GetMessages(c *fiber.Ctx) error {
 	}
 
 	// Validate receiver_class only if present
-	if query.ReceiverClass != nil {
-		receiverClass := strings.ToLower(*query.ReceiverClass)
-		if receiverClass != "user" && receiverClass != "channel" {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "Invalid receiver_class. Must be 'user' or 'channel'.",
-			})
-		}
-		filter["and"] = append(filter["and"], "dm.receiver_class = ?")
-		args = append(args, receiverClass)
-		*query.ReceiverClass = receiverClass // normalize input
+	if query.ReceiverClass != nil && *query.ReceiverClass != "user" && *query.ReceiverClass != "channel" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid receiver_class. Must be 'user' or 'channel'.",
+		})
 	}
 
 	// Match conversation: user ↔ receiver
 	if query.ReceiverID != nil && query.ReceiverClass != nil {
 		filter["or"] = append(filter["or"],
-			"((dm.sender_id = ? AND dm.receiver_id = ? AND dm.receiver_class = ?) OR (dm.sender_id = ? AND dm.receiver_id = ? AND dm.receiver_class = ?))",
+			"((dm.sender_id = ? AND dm.receiver_id = ?) OR (dm.sender_id = ? AND dm.receiver_id = ?))",
 		)
-		args = append(args, requestBy, *query.ReceiverID, *query.ReceiverClass, *query.ReceiverID, requestBy, *query.ReceiverClass)
+		args = append(args, requestBy, *query.ReceiverID, *query.ReceiverID, requestBy)
 	}
 
 	// Date filters
@@ -137,7 +151,7 @@ func GetMessages(c *fiber.Ctx) error {
 	}
 
 	// Fetch results
-	messages, err := sdmsg.Fetch(ctx, filter, args, order, sort, limit, offset)
+	messages, err := smsg.Fetch(ctx, filter, args, order, sort, limit, offset)
 	if err != nil {
 		log.Print(err)
 		return fiber.NewError(fiber.StatusInternalServerError, "Failed to fetch messages")
@@ -145,6 +159,6 @@ func GetMessages(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"response": messages,
-		"total":    len(messages), // Optional: replace with actual total from DB if needed
+		"total":    len(messages),
 	})
 }

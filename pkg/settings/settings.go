@@ -40,7 +40,7 @@ const (
 	// JWT expiration
 	LongExpiration time.Duration = 1 * time.Hour
 
-	ShortExpiration time.Duration = 5 * time.Minute
+	ShortExpiration time.Duration = 50 * time.Minute
 
 	// Cache
 	CacheControlNoStore string = "no-store"
