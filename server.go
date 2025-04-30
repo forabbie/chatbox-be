@@ -9,6 +9,8 @@ import (
 
 	"github.com/joho/godotenv"
 
+	"chatbox/pkg/channel"
+	chub "chatbox/pkg/channel/hub"
 	"chatbox/pkg/database"
 	"chatbox/pkg/database/postgres"
 	"chatbox/pkg/email"
@@ -114,6 +116,9 @@ func main() {
 	email.GomailV2Dialer = dialer
 	email.GomailV2From, email.GomailV2Name = os.Getenv("GOMAIL_FROM"), os.Getenv("GOMAIL_NAME")
 
+	channel.ChatHub = chub.New()
+
+	go channel.ChatHub.Run()
 	// Initialize and run the app
 	app := New()
 
