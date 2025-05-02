@@ -17,6 +17,7 @@ import (
 	// rfile "chatbox/app/route/file"
 	// rstatic "chatbox/app/route/static"
 	rchannel "chatbox/app/route/channel"
+	rdm "chatbox/app/route/dm"
 	rmessage "chatbox/app/route/message"
 	ruser "chatbox/app/route/user"
 
@@ -47,6 +48,7 @@ func New() *fiber.App {
 	ruser.Route(v1)
 	rmessage.Route(v1)
 	rchannel.Route(v1)
+	rdm.Route(v1)
 	// rfile.Route(v1)
 	// rstatic.Route(v1)
 	// raccount.Route(v1)
