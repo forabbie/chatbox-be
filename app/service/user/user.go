@@ -158,7 +158,7 @@ func Fetch(ctx context.Context, filter map[string][]string, args []interface{}, 
 }
 
 func GetAll(ctx context.Context) ([]*muser.User, error) {
-	query := `SELECT id, firstname, lastname, emailaddress FROM users`
+	query := `SELECT id, firstname, lastname, username, emailaddress FROM users`
 
 	rows, err := database.PostgresMain.DB.QueryContext(ctx, query)
 	if err != nil {
@@ -170,7 +170,7 @@ func GetAll(ctx context.Context) ([]*muser.User, error) {
 
 	for rows.Next() {
 		var user muser.User
-		if err := rows.Scan(&user.Id, &user.Firstname, &user.Lastname, &user.EmailAddress); err != nil {
+		if err := rows.Scan(&user.Id, &user.Firstname, &user.Lastname, &user.Username, &user.EmailAddress); err != nil {
 			return nil, err
 		}
 		users = append(users, &user)
