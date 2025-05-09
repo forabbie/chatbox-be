@@ -55,19 +55,16 @@ func CreateChannel(c *fiber.Ctx) error {
 
 func GetUserChannels(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(context.Background(), settings.Timeout)
-
 	defer cancel()
 
 	c.Set(fiber.HeaderCacheControl, settings.CacheControlNoStore)
 
-	// Retrieve claims from context
 	claimsValue := c.Locals("claims")
 	claims, ok := claimsValue.(jwtv4.MapClaims)
 	if !ok {
 		return fiber.NewError(fiber.StatusUnauthorized, "Invalid token claims")
 	}
 
-	// Extract user ID (subject) from claims
 	sub, ok := claims["sub"].(float64)
 	if !ok {
 		return fiber.NewError(fiber.StatusUnauthorized, "Invalid subject in token")
@@ -75,10 +72,9 @@ func GetUserChannels(c *fiber.Ctx) error {
 
 	userID := int64(sub)
 
-	// 🔍 Query channels where user is a member
-	channels, err := schannel.GetByUserID(ctx, userID)
+	channels, err := schannel.GetChannelListWithLatestMessage(ctx, userID)
 	if err != nil {
-		log.Println("Failed to get channels:", err)
+		log.Println("Failed to get channels with latest message:", err)
 		return fiber.NewError(fiber.StatusInternalServerError, "Failed to retrieve channels")
 	}
 

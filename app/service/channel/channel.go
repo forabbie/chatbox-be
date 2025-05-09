@@ -77,12 +77,13 @@ func GetByUserID(ctx context.Context, userID int64) ([]*mchannel.ChannelParam, e
 			c.id,
 			c.name,
 			c.created_by,
-			ARRAY_AGG(cm_all.user_id) AS user_ids
+			ARRAY_AGG(cm.user_id) AS user_ids
 		FROM channels c
-		-- join only to filter channels where user is a member
-		JOIN channel_members cm_filter ON cm_filter.channel_id = c.id AND cm_filter.user_id = $1
-		-- join again to get all members
-		JOIN channel_members cm_all ON cm_all.channel_id = c.id
+		JOIN channel_members cm ON cm.channel_id = c.id
+		WHERE EXISTS (
+			SELECT 1 FROM channel_members 
+			WHERE channel_id = c.id AND user_id = $1
+		)
 		GROUP BY c.id, c.name, c.created_by
 	`
 
@@ -100,6 +101,10 @@ func GetByUserID(ctx context.Context, userID int64) ([]*mchannel.ChannelParam, e
 			return nil, err
 		}
 		channels = append(channels, &ch)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return channels, nil
@@ -204,4 +209,49 @@ func Delete(ctx context.Context, channelID int64) error {
 		DELETE FROM channels WHERE id = $1
 	`, channelID)
 	return err
+}
+
+func GetChannelListWithLatestMessage(ctx context.Context, userID int64) ([]*mchannel.ChannelWithMessage, error) {
+	query := `
+		WITH latest_messages AS (
+			SELECT DISTINCT ON (cm.channel_id)
+				cm.channel_id,
+				cm.id AS message_id,
+				cm.message,
+				cm.sent_at
+			FROM channel_messages cm
+			ORDER BY cm.channel_id, cm.sent_at DESC
+		)
+		SELECT 
+			c.id,
+			c.name,
+			c.created_by,
+			ARRAY_AGG(cm_all.user_id) AS user_ids,
+			lm.message_id,
+			lm.message,
+			lm.sent_at
+		FROM channels c
+		JOIN channel_members cm_filter ON cm_filter.channel_id = c.id AND cm_filter.user_id = $1
+		JOIN channel_members cm_all ON cm_all.channel_id = c.id
+		LEFT JOIN latest_messages lm ON lm.channel_id = c.id
+		GROUP BY c.id, c.name, c.created_by, lm.message_id, lm.message, lm.sent_at
+		ORDER BY lm.sent_at DESC NULLS LAST
+	`
+
+	rows, err := database.PostgresMain.DB.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []*mchannel.ChannelWithMessage
+	for rows.Next() {
+		var ch mchannel.ChannelWithMessage
+		if err := rows.Scan(&ch.ID, &ch.Name, &ch.CreatedBy, pq.Array(&ch.UserIDs), &ch.MessageID, &ch.Message, &ch.SentAt); err != nil {
+			return nil, err
+		}
+		results = append(results, &ch)
+	}
+
+	return results, nil
 }

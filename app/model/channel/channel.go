@@ -1,5 +1,7 @@
 package model
 
+import "time"
+
 // type InsertChannelParam struct {
 // 	ID      int64   `json:"id"`
 // 	Name    string  `json:"name"`
@@ -36,4 +38,14 @@ type UserSummary struct {
 type AddMemberRequest struct {
 	ID       int64 `json:"id"`        // Channel ID
 	MemberID int64 `json:"member_id"` // User ID to add as member
+}
+
+type ChannelWithMessage struct {
+	ID        int64      `json:"id"`
+	Name      string     `json:"name"`
+	CreatedBy int64      `json:"created_by"`
+	UserIDs   []int64    `json:"user_ids"`
+	MessageID *int64     `json:"message_id,omitempty"`
+	Message   *string    `json:"message,omitempty"`
+	SentAt    *time.Time `json:"sent_at,omitempty"`
 }
